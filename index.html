@@ -217,6 +217,9 @@
     .wt-title{ font-weight:800; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#1689BD; margin-bottom:8px; }
     .wt-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .wt-table{ border-collapse:collapse; width:100%; table-layout:fixed; }
+    .wt-table col.wt-c-wk{ width:30px; }
+    .wt-table col.wt-c-sets, .wt-table col.wt-c-reps{ width:46px; }
+    .wt-table col.wt-c-weight{ width:64px; }
     .wt-table th, .wt-table td{ border:1px solid var(--line); padding:0; }
     .wt-table thead th{ background:rgba(13,44,61,.04); font-size:10px; font-weight:800; letter-spacing:.02em; text-transform:uppercase; color:var(--ink-soft); padding:6px 6px; text-align:left; line-height:1.2; white-space:normal; }
     .wt-table tbody th{ text-align:center; font-size:13px; font-weight:800; color:var(--ink); background:rgba(13,44,61,.04); }
@@ -251,28 +254,34 @@
     /* ---------- print / save as PDF ---------- */
     .print-head, .print-link{ display:none; }
     @media print{
+      @page{ margin:12mm; }
       body{ background:#fff !important; }
       .topband, button, .seg, .video-wrap, .ex-meta .is-muted{ display:none !important; }
       .page{ padding:0 !important; max-width:none; }
-      .print-head{ display:block; margin:0 0 14px; }
-      .print-head .ph-title{ font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-size:22px; color:#0d2c3d; }
-      .print-head .ph-sub{ font-size:12px; color:#555; margin-top:2px; }
-      .print-link{ display:block; font-size:11px; color:#666; margin-top:8px; word-break:break-all; }
-      .card{ box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; border-radius:8px; }
+      .print-head{ display:block; margin:0 0 8px; }
+      .print-head .ph-title{ font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-size:20px; color:#0d2c3d; }
+      .print-head .ph-sub{ font-size:11px; color:#555; margin-top:2px; }
+      .print-link{ display:block; font-size:10px; color:#666; margin-top:5px; word-break:break-all; }
+      .stack > * + *{ margin-top:8px !important; }
+      .card{ box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; border-radius:6px; }
       .ex-card{ padding:0; }
-      .ex-card .ex-body{ padding:10px 12px; }
-      .sec-head{ margin:18px 0 8px; }
+      .ex-card .ex-body{ padding:7px 10px; }
+      .ex-name{ font-size:15px; margin-bottom:5px; }
+      .ex-meta{ margin-top:0; }
+      .ex-purpose, .ex-notes{ margin-top:5px; font-size:12px; line-height:1.35; }
+      .sec-head{ margin:11px 0 5px; font-size:15px; }
       .chip{ border:1px solid #bbb !important; background:#fff !important; color:#333 !important; }
-      .ex-img{ max-height:none; max-width:48%; width:auto; float:right; margin:0 0 8px 12px; border:1px solid #ccc; border-radius:6px; }
+      .ex-img{ max-height:130px; max-width:42%; width:auto; float:right; margin:0 0 6px 10px; border:1px solid #ccc; border-radius:6px; }
       .wt-toggle, .wt-actions{ display:none !important; }
-      .wt-panel{ display:block !important; margin-top:10px; }
+      .wt-panel{ display:block !important; margin-top:6px; }
+      .wt-title{ color:#1689BD; margin-bottom:4px; font-size:10px; }
       .wt-scroll{ overflow:visible !important; }
       .wt-table{ width:100% !important; }
-      .wt-table th, .wt-table td{ border:1px solid #999 !important; }
-      .wt-table thead th{ background:#f0f0f0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .wt-table tbody th{ background:#f7f7f7 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .wt-table td input{ font-size:12px; padding:8px 6px; }
-      .wt-title{ color:#1689BD; }
+      .wt-table col.wt-c-weight{ width:96px !important; }
+      .wt-table th, .wt-table td{ border:1px solid #888 !important; }
+      .wt-table thead th{ background:#eee !important; font-size:9px; padding:4px 5px; overflow-wrap:break-word; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .wt-table tbody th{ background:#f5f5f5 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .wt-table td input{ font-size:11px; padding:4px 5px; }
     }
 
     /* small helpers */
@@ -1008,7 +1017,6 @@
             setStatus('saved');
           }
           const cols = section === 'warmup' ? [['notes', 'Notes']] : [['sets', 'Sets'], ['reps', 'Reps'], ['weight', 'Weight / resistance'], ['notes', 'Notes']];
-          const colW = k => k === 'notes' ? null : k === 'weight' ? '64px' : '46px';
           return /*#__PURE__*/React.createElement("div", {
             className: "wt"
           }, /*#__PURE__*/React.createElement("button", {
@@ -1023,14 +1031,10 @@
           }, /*#__PURE__*/React.createElement("table", {
             className: "wt-table"
           }, /*#__PURE__*/React.createElement("colgroup", null, /*#__PURE__*/React.createElement("col", {
-            style: {
-              width: '30px'
-            }
+            className: "wt-c-wk"
           }), cols.map(c => /*#__PURE__*/React.createElement("col", {
             key: c[0],
-            style: colW(c[0]) ? {
-              width: colW(c[0])
-            } : undefined
+            className: 'wt-c-' + c[0]
           }))), /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Wk"), cols.map(c => /*#__PURE__*/React.createElement("th", {
             key: c[0]
           }, c[1])))), /*#__PURE__*/React.createElement("tbody", null, [1, 2, 3, 4, 5, 6].map(w => /*#__PURE__*/React.createElement("tr", {
@@ -1583,8 +1587,9 @@
               });
             }
           }, []);
+          const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
           const fullName = owner ? 'Karen' : clientName || email.split('@')[0] || 'Client';
-          const first = fullName.split(' ')[0];
+          const first = cap(fullName.split(' ')[0]);
           async function signOut() {
             await SB.auth.signOut();
           }
