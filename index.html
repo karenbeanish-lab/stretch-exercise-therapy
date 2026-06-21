@@ -261,6 +261,7 @@
       .print-head{ display:block; margin:0 0 8px; }
       .print-head .ph-title{ font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-size:20px; color:#0d2c3d; }
       .print-head .ph-sub{ font-size:11px; color:#555; margin-top:2px; }
+      .print-head .ph-date{ font-size:11px; color:#333; margin-top:6px; }
       .print-link{ display:block; font-size:10px; color:#666; margin-top:5px; word-break:break-all; }
       .stack > * + *{ margin-top:8px !important; }
       .card{ box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; border-radius:6px; }
@@ -765,6 +766,11 @@
             };
           });
           const uid = session?.user?.id;
+          const printDate = new Date().toLocaleDateString('en-AU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
           return /*#__PURE__*/React.createElement("div", {
             className: "page fade-up"
           }, /*#__PURE__*/React.createElement("div", {
@@ -773,7 +779,9 @@
             className: "ph-title"
           }, name, " — Exercise Program"), /*#__PURE__*/React.createElement("div", {
             className: "ph-sub"
-          }, "Stretch For Success — Exercise Therapy")), /*#__PURE__*/React.createElement("div", {
+          }, "Stretch For Success — Exercise Therapy"), /*#__PURE__*/React.createElement("div", {
+            className: "ph-date"
+          }, "Date: ", printDate)), /*#__PURE__*/React.createElement("div", {
             className: "row-between",
             style: {
               margin: '4px 0 16px'
