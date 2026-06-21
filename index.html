@@ -195,6 +195,8 @@
     .ex-card .ex-name{ font-weight:700; font-size:16px; margin-bottom:8px; }
     .ex-meta{ display:flex; gap:8px; flex-wrap:wrap; }
     .ex-notes{ font-size:14px; color:var(--ink-soft); margin-top:10px; white-space:pre-wrap; line-height:1.5; }
+    .ex-purpose{ font-size:14px; color:var(--ink); margin-top:10px; line-height:1.5; }
+    .ex-lbl{ display:inline-block; font-weight:800; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#1689BD; margin-right:8px; }
 
     /* ---------- editor rows ---------- */
     .ex-edit{ display:flex; align-items:center; gap:8px; padding:11px 12px; }
@@ -743,7 +745,11 @@
               className: "chip is-mint"
             }, "Sets · ", ex.sets), ex.reps && /*#__PURE__*/React.createElement("span", {
               className: "chip"
-            }, "Reps · ", ex.reps)), ex.notes && /*#__PURE__*/React.createElement("div", {
+            }, "Reps · ", ex.reps)), ex.purpose && /*#__PURE__*/React.createElement("div", {
+              className: "ex-purpose"
+            }, /*#__PURE__*/React.createElement("span", {
+              className: "ex-lbl"
+            }, "Purpose"), ex.purpose), ex.notes && /*#__PURE__*/React.createElement("div", {
               className: "ex-notes"
             }, ex.notes), ex.vimeo_id && /*#__PURE__*/React.createElement("div", {
               className: "print-link"
@@ -870,6 +876,7 @@
           const [vimeo, setVimeo] = useState(vimeoLink(initial.vimeo_id, initial.vimeo_hash));
           const [reps, setReps] = useState(initial.reps || '');
           const [sets, setSets] = useState(initial.sets || '');
+          const [purpose, setPurpose] = useState(initial.purpose || '');
           const [notes, setNotes] = useState(initial.notes || '');
           const [msg, setMsg] = useState(null);
           function submit() {
@@ -884,6 +891,7 @@
               vimeo,
               reps,
               sets,
+              purpose,
               notes
             });
           }
@@ -942,6 +950,13 @@
             onChange: e => setReps(e.target.value),
             placeholder: "10 or 30 sec"
           }))), /*#__PURE__*/React.createElement("div", {
+            className: "field"
+          }, /*#__PURE__*/React.createElement("label", null, "Purpose (optional)"), /*#__PURE__*/React.createElement("textarea", {
+            value: purpose,
+            onChange: e => setPurpose(e.target.value),
+            rows: 2,
+            placeholder: "Why this exercise — e.g. Improve breathing mechanics, posture and core activation"
+          })), /*#__PURE__*/React.createElement("div", {
             className: "field",
             style: {
               marginBottom: 0
@@ -1012,6 +1027,7 @@
               vimeo_hash: v.hash || null,
               reps: form.reps.trim() || null,
               sets: form.sets.trim() || null,
+              purpose: form.purpose.trim() || null,
               notes: form.notes.trim() || null
             };
             let error;
