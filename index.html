@@ -165,6 +165,21 @@
     .tile .body .t{ font-weight:700; font-size:16px; }
     .tile .body .s{ font-size:13px; color:var(--ink-soft); }
 
+    /* ---------- admin: segmented tabs ---------- */
+    .seg{ display:flex; gap:6px; background:rgba(13,44,61,.05); border:1px solid var(--line); border-radius:14px; padding:5px; margin:4px 0 4px; }
+    .seg button{ flex:1; border:0; background:none; cursor:pointer; font-family:'Montserrat',sans-serif; font-weight:700; font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft); padding:11px 8px; border-radius:10px; }
+    .seg button.on{ background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(13,44,61,.06); }
+
+    /* ---------- admin: rows ---------- */
+    .row-between{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .client-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; }
+    .client-row .nm{ font-weight:700; font-size:15px; }
+    .client-row .em{ font-size:13px; color:var(--ink-soft); word-break:break-all; }
+    .status-select{ font-family:'Montserrat',sans-serif; font-weight:700; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:7px 10px; background:#fff; cursor:pointer; }
+    .barbtn{ display:inline-flex; align-items:center; gap:8px; width:auto; padding:11px 16px; min-height:0; font-size:14px; border-radius:12px; }
+    .backbtn{ display:inline-flex; align-items:center; gap:6px; background:none; border:0; cursor:pointer; color:var(--ink-soft); font-weight:600; font-size:14px; padding:6px 4px; }
+    .spinner{ color:var(--ink-soft); font-size:14px; text-align:center; padding:18px; }
+
     /* ---------- motion ---------- */
     @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
     .fade-up{ animation:fadeUp .4s ease both; }
@@ -252,7 +267,11 @@
           eye: ['M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'],
           eyeoff: ['M3 3l18 18', 'M10.5 10.6a3 3 0 0 0 4 4', 'M9.4 5.2A9.7 9.7 0 0 1 12 5c7 0 10 7 10 7a16 16 0 0 1-2.3 3.2M6.1 6.6A16 16 0 0 0 2 12s3 7 10 7a9.6 9.6 0 0 0 3-.5'],
           users: ['M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', 'M3 21v-1a6 6 0 0 1 6-6', 'M16 3.1a4 4 0 0 1 0 7.8', 'M21 21v-1a6 6 0 0 0-4-5.6'],
-          stack: ['M12 3l9 5-9 5-9-5 9-5z', 'M3 13l9 5 9-5', 'M3 18l9 5 9-5']
+          stack: ['M12 3l9 5-9 5-9-5 9-5z', 'M3 13l9 5 9-5', 'M3 18l9 5 9-5'],
+          plus: ['M12 5v14', 'M5 12h14'],
+          back: ['M15 18l-6-6 6-6'],
+          mail: ['M3 7a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z', 'M3 7l9 6 9-6'],
+          refresh: ['M4 12a8 8 0 0 1 13.7-5.7L20 8', 'M20 4v4h-4', 'M20 12a8 8 0 0 1-13.7 5.7L4 16', 'M4 20v-4h4']
         };
         
         /* ======================== AUTH ======================== */
@@ -537,45 +556,254 @@
           }, "Coming soon")))));
         }
         
-        /* Placeholder admin view — nav tiles (editors wired in the next iterations). */
-        function AdminHome() {
+        /* ---------- invite helper: calls the invite-client Edge Function ---------- */
+        async function invokeInvite(body) {
+          const {
+            data,
+            error
+          } = await SB.functions.invoke('invite-client', {
+            body
+          });
+          if (error) {
+            let m = 'Couldn’t invite this client.';
+            try {
+              const j = await error.context.json();
+              if (j && j.error) m = j.error;
+            } catch (_) {}
+            return {
+              ok: false,
+              error: m
+            };
+          }
+          if (data && data.ok === false) return {
+            ok: false,
+            error: data.error || 'Couldn’t invite this client.'
+          };
+          return {
+            ok: true
+          };
+        }
+        function StatusSelect({
+          value,
+          onChange
+        }) {
+          return /*#__PURE__*/React.createElement("select", {
+            className: "status-select",
+            value: value,
+            onChange: e => onChange(e.target.value)
+          }, /*#__PURE__*/React.createElement("option", {
+            value: "active"
+          }, "Active"), /*#__PURE__*/React.createElement("option", {
+            value: "paused"
+          }, "Paused"), /*#__PURE__*/React.createElement("option", {
+            value: "inactive"
+          }, "Inactive"));
+        }
+        function AddClientForm({
+          onDone,
+          onCancel
+        }) {
+          const [name, setName] = useState('');
+          const [email, setEmail] = useState('');
+          const [busy, setBusy] = useState(false);
+          const [msg, setMsg] = useState(null);
+          async function submit() {
+            if (!name.trim() || !email.trim()) {
+              setMsg({
+                type: 'error',
+                text: 'Enter the client’s name and email.'
+              });
+              return;
+            }
+            setBusy(true);
+            setMsg(null);
+            const res = await invokeInvite({
+              full_name: name.trim(),
+              email: email.trim()
+            });
+            setBusy(false);
+            if (!res.ok) {
+              setMsg({
+                type: 'error',
+                text: res.error
+              });
+              return;
+            }
+            onDone(email.trim());
+          }
+          return /*#__PURE__*/React.createElement("div", {
+            className: "card stack"
+          }, /*#__PURE__*/React.createElement("h3", {
+            style: {
+              fontSize: '17px'
+            }
+          }, "New client"), msg && /*#__PURE__*/React.createElement("div", {
+            className: `msg ${msg.type}`
+          }, msg.text), /*#__PURE__*/React.createElement("div", {
+            className: "field"
+          }, /*#__PURE__*/React.createElement("label", null, "Full name"), /*#__PURE__*/React.createElement("input", {
+            value: name,
+            onChange: e => setName(e.target.value),
+            placeholder: "Jane Smith"
+          })), /*#__PURE__*/React.createElement("div", {
+            className: "field"
+          }, /*#__PURE__*/React.createElement("label", null, "Email"), /*#__PURE__*/React.createElement("input", {
+            type: "email",
+            value: email,
+            onChange: e => setEmail(e.target.value),
+            placeholder: "jane@email.com"
+          })), /*#__PURE__*/React.createElement("button", {
+            className: "btn-grad",
+            disabled: busy,
+            onClick: submit
+          }, busy ? 'Sending invite…' : 'Send invite'), /*#__PURE__*/React.createElement("button", {
+            className: "btn-ghost",
+            disabled: busy,
+            onClick: onCancel
+          }, "Cancel"), /*#__PURE__*/React.createElement("p", {
+            className: "muted"
+          }, "They’ll get an email to set their own password, then they can sign in."));
+        }
+        function ClientsScreen() {
+          const [clients, setClients] = useState(null); // null = loading
+          const [adding, setAdding] = useState(false);
+          const [notice, setNotice] = useState(null);
+          const [err, setErr] = useState(null);
+          async function load() {
+            setErr(null);
+            const {
+              data,
+              error
+            } = await SB.from('clients').select('*').order('created_at', {
+              ascending: false
+            });
+            if (error) {
+              setErr('Couldn’t load clients.');
+              setClients([]);
+              return;
+            }
+            setClients(data || []);
+          }
+          useEffect(() => {
+            load();
+          }, []);
+          async function setStatus(id, status) {
+            setClients(cs => cs.map(c => c.id === id ? {
+              ...c,
+              access_status: status
+            } : c));
+            const {
+              error
+            } = await SB.from('clients').update({
+              access_status: status
+            }).eq('id', id);
+            if (error) {
+              setErr('Couldn’t update that status — reloading.');
+              load();
+            }
+          }
+          if (adding) {
+            return /*#__PURE__*/React.createElement("div", {
+              className: "page fade-up"
+            }, /*#__PURE__*/React.createElement("button", {
+              className: "backbtn",
+              onClick: () => setAdding(false)
+            }, /*#__PURE__*/React.createElement(Icon, {
+              d: ICONS.back,
+              size: 18
+            }), " Clients"), /*#__PURE__*/React.createElement(AddClientForm, {
+              onCancel: () => setAdding(false),
+              onDone: email => {
+                setAdding(false);
+                setNotice('Invite sent to ' + email + '.');
+                load();
+              }
+            }));
+          }
+          return /*#__PURE__*/React.createElement("div", {
+            className: "page fade-up"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "row-between",
+            style: {
+              margin: '4px 0 12px'
+            }
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "section-label",
+            style: {
+              margin: 0
+            }
+          }, "Clients"), /*#__PURE__*/React.createElement("button", {
+            className: "btn-grad barbtn",
+            onClick: () => {
+              setNotice(null);
+              setAdding(true);
+            }
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.plus,
+            size: 18
+          }), " Add client")), notice && /*#__PURE__*/React.createElement("div", {
+            className: "msg ok",
+            style: {
+              marginBottom: '12px'
+            }
+          }, notice), err && /*#__PURE__*/React.createElement("div", {
+            className: "msg error",
+            style: {
+              marginBottom: '12px'
+            }
+          }, err), clients === null ? /*#__PURE__*/React.createElement("div", {
+            className: "card"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "spinner"
+          }, "Loading clients…")) : clients.length === 0 ? /*#__PURE__*/React.createElement("div", {
+            className: "card"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "empty"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "big"
+          }, "No clients yet"), /*#__PURE__*/React.createElement("p", null, "Add your first client to send them an invite."))) : /*#__PURE__*/React.createElement("div", {
+            className: "stack"
+          }, clients.map(c => /*#__PURE__*/React.createElement("div", {
+            className: "card client-row",
+            key: c.id
+          }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+            className: "nm"
+          }, c.full_name), /*#__PURE__*/React.createElement("div", {
+            className: "em"
+          }, c.email)), /*#__PURE__*/React.createElement(StatusSelect, {
+            value: c.access_status,
+            onChange: s => setStatus(c.id, s)
+          })))));
+        }
+        function TemplatesScreen() {
           return /*#__PURE__*/React.createElement("div", {
             className: "page fade-up"
           }, /*#__PURE__*/React.createElement("div", {
             className: "section-label"
-          }, "Admin"), /*#__PURE__*/React.createElement("div", {
-            className: "stack"
-          }, /*#__PURE__*/React.createElement("div", {
-            className: "card tile"
-          }, /*#__PURE__*/React.createElement("div", {
-            className: "ico"
-          }, /*#__PURE__*/React.createElement(Icon, {
-            d: ICONS.users
-          })), /*#__PURE__*/React.createElement("div", {
-            className: "body"
-          }, /*#__PURE__*/React.createElement("div", {
-            className: "t"
-          }, "Clients"), /*#__PURE__*/React.createElement("div", {
-            className: "s"
-          }, "Create accounts, set access, assign programs")), /*#__PURE__*/React.createElement("span", {
-            className: "chip is-muted"
-          }, "Next")), /*#__PURE__*/React.createElement("div", {
-            className: "card tile"
-          }, /*#__PURE__*/React.createElement("div", {
-            className: "ico"
-          }, /*#__PURE__*/React.createElement(Icon, {
-            d: ICONS.stack
-          })), /*#__PURE__*/React.createElement("div", {
-            className: "body"
-          }, /*#__PURE__*/React.createElement("div", {
-            className: "t"
           }, "Templates"), /*#__PURE__*/React.createElement("div", {
-            className: "s"
-          }, "Build reusable programs across the four sections")), /*#__PURE__*/React.createElement("span", {
-            className: "chip is-muted"
-          }, "Next"))), /*#__PURE__*/React.createElement("p", {
-            className: "muted center mt24"
-          }, "Shell is live and brand-matched. Client program view and these editors come next."));
+            className: "card"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "empty"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "big"
+          }, "Coming next"), /*#__PURE__*/React.createElement("p", null, "The program builder — sections, exercises, Vimeo videos, and assigning to clients — is the next piece we’ll build."))));
+        }
+        function AdminHome() {
+          const [tab, setTab] = useState('clients');
+          return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+            className: "page",
+            style: {
+              paddingBottom: 0
+            }
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "seg"
+          }, /*#__PURE__*/React.createElement("button", {
+            className: tab === 'clients' ? 'on' : '',
+            onClick: () => setTab('clients')
+          }, "Clients"), /*#__PURE__*/React.createElement("button", {
+            className: tab === 'templates' ? 'on' : '',
+            onClick: () => setTab('templates')
+          }, "Templates"))), tab === 'clients' ? /*#__PURE__*/React.createElement(ClientsScreen, null) : /*#__PURE__*/React.createElement(TemplatesScreen, null));
         }
         function Shell({
           session,
