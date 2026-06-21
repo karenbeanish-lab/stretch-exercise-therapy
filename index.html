@@ -291,13 +291,15 @@
             className: "accent"
           }, "Therapy")));
         }
-        function AuthScreen() {
+        function AuthScreen({
+          initialMsg
+        }) {
           const [mode, setMode] = useState('login'); // login | forgot
           const [email, setEmail] = useState('');
           const [pw, setPw] = useState('');
           const [show, setShow] = useState(false);
           const [busy, setBusy] = useState(false);
-          const [msg, setMsg] = useState(null);
+          const [msg, setMsg] = useState(initialMsg || null);
           async function signIn() {
             if (!email || !pw) {
               setMsg({
@@ -825,16 +827,57 @@
         function App() {
           const [phase, setPhase] = useState('loading'); // loading | auth | recover | app
           const [session, setSession] = useState(null);
+          const [authMsg, setAuthMsg] = useState(null); // shown on the auth screen
+        
           useEffect(() => {
-            const hash = window.location.hash || '';
-            const isRecovery = /type=(recovery|invite)/.test(hash);
+            const qp = new URLSearchParams(window.location.search);
+            const hp = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+            const tokenHash = qp.get('token_hash');
+            const otpType = qp.get('type'); // invite | recovery
+            const linkError = qp.get('error') || hp.get('error') || hp.get('error_code');
+            const cleanUrl = () => history.replaceState(null, '', window.location.pathname);
+        
+            // 1) Scanner-safe invite/recovery: verify the token in-browser.
+            if (tokenHash && otpType) {
+              SB.auth.verifyOtp({
+                token_hash: tokenHash,
+                type: otpType
+              }).then(({
+                data,
+                error
+              }) => {
+                cleanUrl();
+                if (error) {
+                  setAuthMsg({
+                    type: 'error',
+                    text: 'That link has expired or was already used. Ask Stretch For Success to send a fresh one.'
+                  });
+                  setPhase('auth');
+                  return;
+                }
+                if (otpType === 'invite' || otpType === 'recovery') {
+                  setPhase('recover');
+                  return;
+                }
+                setSession(data.session);
+                setPhase(data.session ? 'app' : 'auth');
+              });
+              return;
+            }
+        
+            // 2) A link that already failed upstream (token burned by a scanner, etc).
+            if (linkError) {
+              cleanUrl();
+              setAuthMsg({
+                type: 'error',
+                text: 'That link has expired or was already used. Ask Stretch For Success to send a fresh one.'
+              });
+            }
+        
+            // 3) Normal flow.
             SB.auth.getSession().then(({
               data
             }) => {
-              if (isRecovery) {
-                setPhase('recover');
-                return;
-              }
               setSession(data.session);
               setPhase(data.session ? 'app' : 'auth');
             });
@@ -856,7 +899,9 @@
           if (phase === 'recover') return /*#__PURE__*/React.createElement(SetPassword, {
             onDone: () => setPhase('app')
           });
-          if (phase === 'auth') return /*#__PURE__*/React.createElement(AuthScreen, null);
+          if (phase === 'auth') return /*#__PURE__*/React.createElement(AuthScreen, {
+            initialMsg: authMsg
+          });
           return /*#__PURE__*/React.createElement(Shell, {
             session: session,
             owner: isOwnerEmail(session?.user?.email)
