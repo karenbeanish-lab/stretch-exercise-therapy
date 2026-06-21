@@ -216,6 +216,23 @@
     .fade-up{ animation:fadeUp .4s ease both; }
     @media (prefers-reduced-motion: reduce){ .fade-up{ animation:none; } }
 
+    /* ---------- print / save as PDF ---------- */
+    .print-head, .print-link{ display:none; }
+    @media print{
+      body{ background:#fff !important; }
+      .topband, button, .seg, .video-wrap, .ex-meta .is-muted{ display:none !important; }
+      .page{ padding:0 !important; max-width:none; }
+      .print-head{ display:block; margin:0 0 14px; }
+      .print-head .ph-title{ font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-size:22px; color:#0d2c3d; }
+      .print-head .ph-sub{ font-size:12px; color:#555; margin-top:2px; }
+      .print-link{ display:block; font-size:11px; color:#666; margin-top:8px; word-break:break-all; }
+      .card{ box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; border-radius:8px; }
+      .ex-card{ padding:0; }
+      .ex-card .ex-body{ padding:10px 12px; }
+      .sec-head{ margin:18px 0 8px; }
+      .chip{ border:1px solid #bbb !important; background:#fff !important; color:#333 !important; }
+    }
+
     /* small helpers */
     .center{ text-align:center; }
     .mt8{ margin-top:8px; } .mt16{ margin-top:16px; } .mt24{ margin-top:24px; }
@@ -627,7 +644,9 @@
         
         /* ---------- Client program view ---------- */
         function ClientHome({
-          session
+          session,
+          name,
+          first
         }) {
           const [st, setSt] = useState({
             loading: true,
@@ -665,7 +684,12 @@
           const hasExercises = st.program && st.exercises.length > 0;
           if (!hasExercises) return /*#__PURE__*/React.createElement("div", {
             className: "page fade-up"
-          }, /*#__PURE__*/React.createElement("div", {
+          }, /*#__PURE__*/React.createElement("h3", {
+            style: {
+              fontSize: '22px',
+              margin: '4px 0 14px'
+            }
+          }, "Hi ", first), /*#__PURE__*/React.createElement("div", {
             className: "card"
           }, /*#__PURE__*/React.createElement("div", {
             className: "empty"
@@ -674,7 +698,25 @@
           }, "Your program is on its way"), /*#__PURE__*/React.createElement("p", null, "When Stretch For Success adds your exercises, they’ll appear here — ready to follow on your phone."))));
           return /*#__PURE__*/React.createElement("div", {
             className: "page fade-up"
-          }, SECTIONS.map((s, i) => {
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "print-head"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "ph-title"
+          }, name, " — Exercise Program"), /*#__PURE__*/React.createElement("div", {
+            className: "ph-sub"
+          }, "Stretch For Success — Exercise Therapy")), /*#__PURE__*/React.createElement("div", {
+            className: "row-between",
+            style: {
+              margin: '4px 0 16px'
+            }
+          }, /*#__PURE__*/React.createElement("h3", {
+            style: {
+              fontSize: '22px'
+            }
+          }, "Hi ", first), /*#__PURE__*/React.createElement("button", {
+            className: "btn-ghost barbtn",
+            onClick: () => window.print()
+          }, "Print / Save PDF")), SECTIONS.map((s, i) => {
             const list = st.exercises.filter(e => e.section === s.key).sort((a, b) => a.position - b.position);
             if (!list.length) return null;
             return /*#__PURE__*/React.createElement("div", {
@@ -703,7 +745,9 @@
               className: "chip"
             }, "Reps · ", ex.reps)), ex.notes && /*#__PURE__*/React.createElement("div", {
               className: "ex-notes"
-            }, ex.notes))))));
+            }, ex.notes), ex.vimeo_id && /*#__PURE__*/React.createElement("div", {
+              className: "print-link"
+            }, "Watch: ", vimeoLink(ex.vimeo_id, ex.vimeo_hash)))))));
           }));
         }
         
@@ -867,10 +911,11 @@
             placeholder: "e.g. Cat-Cow"
           })), /*#__PURE__*/React.createElement("div", {
             className: "field"
-          }, /*#__PURE__*/React.createElement("label", null, "Vimeo link"), /*#__PURE__*/React.createElement("input", {
+          }, /*#__PURE__*/React.createElement("label", null, "Vimeo link or embed code"), /*#__PURE__*/React.createElement("textarea", {
             value: vimeo,
             onChange: e => setVimeo(e.target.value),
-            placeholder: "Paste the Vimeo link or ID"
+            rows: 2,
+            placeholder: "Paste the Vimeo link, embed code, or ID"
           })), /*#__PURE__*/React.createElement("div", {
             style: {
               display: 'flex',
@@ -1277,16 +1322,29 @@
           owner
         }) {
           const email = session?.user?.email || '';
-          const name = owner ? 'Karen' : email.split('@')[0] || 'Client';
+          const [clientName, setClientName] = useState(null);
+          useEffect(() => {
+            if (!owner && session?.user?.id) {
+              SB.from('clients').select('full_name').eq('id', session.user.id).single().then(({
+                data
+              }) => {
+                if (data && data.full_name) setClientName(data.full_name);
+              });
+            }
+          }, []);
+          const fullName = owner ? 'Karen' : clientName || email.split('@')[0] || 'Client';
+          const first = fullName.split(' ')[0];
           async function signOut() {
             await SB.auth.signOut();
           }
           return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(TopBand, {
-            name: name,
+            name: first,
             role: owner ? 'Admin' : 'Client',
             onSignOut: signOut
           }), owner ? /*#__PURE__*/React.createElement(AdminHome, null) : /*#__PURE__*/React.createElement(ClientHome, {
-            session: session
+            session: session,
+            name: fullName,
+            first: first
           }));
         }
         
