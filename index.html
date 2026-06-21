@@ -180,6 +180,37 @@
     .backbtn{ display:inline-flex; align-items:center; gap:6px; background:none; border:0; cursor:pointer; color:var(--ink-soft); font-weight:600; font-size:14px; padding:6px 4px; }
     .spinner{ color:var(--ink-soft); font-size:14px; text-align:center; padding:18px; }
 
+    /* ---------- video ---------- */
+    .video-wrap{ position:relative; width:100%; padding-top:56.25%; background:#0d2c3d; }
+    .video-wrap iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+    .no-video{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.55); font-size:13px; gap:6px; }
+
+    /* ---------- section headers ---------- */
+    .sec-head{ font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-size:18px; color:var(--ink); margin:24px 4px 12px; display:flex; align-items:center; gap:10px; }
+    .sec-head .num{ width:26px; height:26px; border-radius:8px; background:var(--grad-primary); color:#fff; font-family:'Montserrat',sans-serif; font-weight:800; font-size:13px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+
+    /* ---------- exercise card (client view) ---------- */
+    .ex-card{ overflow:hidden; padding:0; }
+    .ex-card .ex-body{ padding:15px 17px; }
+    .ex-card .ex-name{ font-weight:700; font-size:16px; margin-bottom:8px; }
+    .ex-meta{ display:flex; gap:8px; flex-wrap:wrap; }
+    .ex-notes{ font-size:14px; color:var(--ink-soft); margin-top:10px; white-space:pre-wrap; line-height:1.5; }
+
+    /* ---------- editor rows ---------- */
+    .ex-edit{ display:flex; align-items:center; gap:8px; padding:11px 12px; }
+    .ex-edit .grow{ flex:1; min-width:0; }
+    .ex-edit .t{ font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ex-edit .s{ font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .minibtn{ width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+    .minibtn:active{ transform:translateY(1px); }
+    .minibtn:disabled{ opacity:.35; cursor:default; }
+    .minibtn.danger{ color:#a23030; }
+    .addrow{ width:100%; border:1px dashed rgba(13,44,61,.20); background:rgba(13,44,61,.02); color:#1689BD; font-weight:700; font-size:14px; padding:13px; border-radius:12px; cursor:pointer; }
+    .addrow:active{ transform:translateY(1px); }
+    .clientpick{ cursor:pointer; min-width:0; }
+    .field textarea{ width:100%; font-family:'Montserrat',sans-serif; font-size:16px; color:var(--ink); padding:14px; border-radius:13px; border:1px solid var(--line); background:#fff; outline:none; resize:vertical; }
+    .field textarea:focus{ border-color:var(--accent-mint); box-shadow:0 0 0 4px rgba(80,207,176,.18); }
+
     /* ---------- motion ---------- */
     @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
     .fade-up{ animation:fadeUp .4s ease both; }
@@ -271,7 +302,13 @@
           plus: ['M12 5v14', 'M5 12h14'],
           back: ['M15 18l-6-6 6-6'],
           mail: ['M3 7a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z', 'M3 7l9 6 9-6'],
-          refresh: ['M4 12a8 8 0 0 1 13.7-5.7L20 8', 'M20 4v4h-4', 'M20 12a8 8 0 0 1-13.7 5.7L4 16', 'M4 20v-4h4']
+          refresh: ['M4 12a8 8 0 0 1 13.7-5.7L20 8', 'M20 4v4h-4', 'M20 12a8 8 0 0 1-13.7 5.7L4 16', 'M4 20v-4h4'],
+          edit: ['M4 20h4L18 10a2 2 0 0 0-3-3L5 17z', 'M13.5 6.5l3 3'],
+          trash: ['M4 7h16', 'M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2', 'M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12'],
+          up: ['M6 14l6-6 6 6'],
+          down: ['M6 10l6 6 6-6'],
+          chevR: ['M9 6l6 6-6 6'],
+          play: ['M8 5v14l11-7z']
         };
         
         /* ======================== AUTH ======================== */
@@ -527,35 +564,147 @@
           }))));
         }
         
-        /* Placeholder client view — previews the 4-section structure (data wiring next). */
-        function ClientHome() {
+        /* ---------- Vimeo helpers ---------- */
+        function parseVimeo(input) {
+          if (!input) return {
+            id: '',
+            hash: ''
+          };
+          const s = String(input).trim();
+          if (/^\d+$/.test(s)) return {
+            id: s,
+            hash: ''
+          };
+          let m = s.match(/player\.vimeo\.com\/video\/(\d+)/);
+          if (m) {
+            const h = (s.match(/[?&]h=([0-9a-zA-Z]+)/) || [])[1] || '';
+            return {
+              id: m[1],
+              hash: h
+            };
+          }
+          m = s.match(/vimeo\.com\/(?:[a-z]+\/)?(\d+)(?:\/([0-9a-zA-Z]+))?/);
+          if (m) return {
+            id: m[1],
+            hash: m[2] || ''
+          };
+          m = s.match(/^(\d+)\/([0-9a-zA-Z]+)$/);
+          if (m) return {
+            id: m[1],
+            hash: m[2]
+          };
+          return {
+            id: '',
+            hash: ''
+          };
+        }
+        function vimeoLink(id, hash) {
+          if (!id) return '';
+          return hash ? `https://vimeo.com/${id}/${hash}` : `https://vimeo.com/${id}`;
+        }
+        function VimeoEmbed({
+          id,
+          hash
+        }) {
+          if (!id) return /*#__PURE__*/React.createElement("div", {
+            className: "video-wrap"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "no-video"
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.play,
+            size: 16
+          }), " No video yet"));
+          const src = `https://player.vimeo.com/video/${id}?title=0&byline=0&portrait=0&dnt=1${hash ? `&h=${hash}` : ''}`;
           return /*#__PURE__*/React.createElement("div", {
+            className: "video-wrap"
+          }, /*#__PURE__*/React.createElement("iframe", {
+            src: src,
+            allow: "autoplay; fullscreen; picture-in-picture",
+            allowFullScreen: true,
+            loading: "lazy"
+          }));
+        }
+        
+        /* ---------- Client program view ---------- */
+        function ClientHome({
+          session
+        }) {
+          const [st, setSt] = useState({
+            loading: true,
+            program: null,
+            exercises: []
+          });
+          useEffect(() => {
+            (async () => {
+              const uid = session?.user?.id;
+              const {
+                data: progs
+              } = await SB.from('programs').select('*').eq('client_id', uid).eq('is_active', true).order('position').limit(1);
+              const program = progs && progs[0] || null;
+              let exercises = [];
+              if (program) {
+                const {
+                  data: exs
+                } = await SB.from('exercises').select('*').eq('program_id', program.id);
+                exercises = exs || [];
+              }
+              setSt({
+                loading: false,
+                program,
+                exercises
+              });
+            })();
+          }, []);
+          if (st.loading) return /*#__PURE__*/React.createElement("div", {
+            className: "page"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "card"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "spinner"
+          }, "Loading your program…")));
+          const hasExercises = st.program && st.exercises.length > 0;
+          if (!hasExercises) return /*#__PURE__*/React.createElement("div", {
             className: "page fade-up"
           }, /*#__PURE__*/React.createElement("div", {
-            className: "card stack"
+            className: "card"
           }, /*#__PURE__*/React.createElement("div", {
             className: "empty"
           }, /*#__PURE__*/React.createElement("div", {
             className: "big"
-          }, "Your program is on its way"), /*#__PURE__*/React.createElement("p", null, "When Stretch For Success assigns your exercises, they’ll appear here — ready to follow on your phone."))), /*#__PURE__*/React.createElement("div", {
-            className: "section-label"
-          }, "Your program will be organised as"), /*#__PURE__*/React.createElement("div", {
-            className: "stack"
-          }, SECTIONS.map((s, i) => /*#__PURE__*/React.createElement("div", {
-            className: "card",
-            key: s.key,
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }
-          }, /*#__PURE__*/React.createElement("span", {
-            style: {
-              fontWeight: 700
-            }
-          }, i + 1, ". ", s.label), /*#__PURE__*/React.createElement("span", {
-            className: "chip is-muted"
-          }, "Coming soon")))));
+          }, "Your program is on its way"), /*#__PURE__*/React.createElement("p", null, "When Stretch For Success adds your exercises, they’ll appear here — ready to follow on your phone."))));
+          return /*#__PURE__*/React.createElement("div", {
+            className: "page fade-up"
+          }, SECTIONS.map((s, i) => {
+            const list = st.exercises.filter(e => e.section === s.key).sort((a, b) => a.position - b.position);
+            if (!list.length) return null;
+            return /*#__PURE__*/React.createElement("div", {
+              key: s.key
+            }, /*#__PURE__*/React.createElement("div", {
+              className: "sec-head"
+            }, /*#__PURE__*/React.createElement("span", {
+              className: "num"
+            }, i + 1), s.label), /*#__PURE__*/React.createElement("div", {
+              className: "stack"
+            }, list.map(ex => /*#__PURE__*/React.createElement("div", {
+              className: "card ex-card",
+              key: ex.id
+            }, /*#__PURE__*/React.createElement(VimeoEmbed, {
+              id: ex.vimeo_id,
+              hash: ex.vimeo_hash
+            }), /*#__PURE__*/React.createElement("div", {
+              className: "ex-body"
+            }, /*#__PURE__*/React.createElement("div", {
+              className: "ex-name"
+            }, ex.name), (ex.sets || ex.reps) && /*#__PURE__*/React.createElement("div", {
+              className: "ex-meta"
+            }, ex.sets && /*#__PURE__*/React.createElement("span", {
+              className: "chip is-mint"
+            }, "Sets · ", ex.sets), ex.reps && /*#__PURE__*/React.createElement("span", {
+              className: "chip"
+            }, "Reps · ", ex.reps)), ex.notes && /*#__PURE__*/React.createElement("div", {
+              className: "ex-notes"
+            }, ex.notes))))));
+          }));
         }
         
         /* ---------- invite helper: calls the invite-client Edge Function ---------- */
@@ -666,9 +815,309 @@
             className: "muted"
           }, "They’ll get an email to set their own password, then they can sign in."));
         }
+        function ExerciseForm({
+          initial,
+          busy,
+          onCancel,
+          onSave
+        }) {
+          const isEdit = !!initial.id;
+          const [name, setName] = useState(initial.name || '');
+          const [vimeo, setVimeo] = useState(vimeoLink(initial.vimeo_id, initial.vimeo_hash));
+          const [reps, setReps] = useState(initial.reps || '');
+          const [sets, setSets] = useState(initial.sets || '');
+          const [notes, setNotes] = useState(initial.notes || '');
+          const [msg, setMsg] = useState(null);
+          function submit() {
+            if (!name.trim()) {
+              setMsg('Give the exercise a name.');
+              return;
+            }
+            onSave({
+              id: initial.id,
+              section: initial.section,
+              name,
+              vimeo,
+              reps,
+              sets,
+              notes
+            });
+          }
+          return /*#__PURE__*/React.createElement("div", {
+            className: "page fade-up"
+          }, /*#__PURE__*/React.createElement("button", {
+            className: "backbtn",
+            onClick: onCancel
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.back,
+            size: 18
+          }), " Back"), /*#__PURE__*/React.createElement("div", {
+            className: "card stack"
+          }, /*#__PURE__*/React.createElement("h3", {
+            style: {
+              fontSize: '18px'
+            }
+          }, isEdit ? 'Edit exercise' : 'Add exercise'), msg && /*#__PURE__*/React.createElement("div", {
+            className: "msg error"
+          }, msg), /*#__PURE__*/React.createElement("div", {
+            className: "field"
+          }, /*#__PURE__*/React.createElement("label", null, "Exercise name"), /*#__PURE__*/React.createElement("input", {
+            value: name,
+            onChange: e => setName(e.target.value),
+            placeholder: "e.g. Cat-Cow"
+          })), /*#__PURE__*/React.createElement("div", {
+            className: "field"
+          }, /*#__PURE__*/React.createElement("label", null, "Vimeo link"), /*#__PURE__*/React.createElement("input", {
+            value: vimeo,
+            onChange: e => setVimeo(e.target.value),
+            placeholder: "Paste the Vimeo link or ID"
+          })), /*#__PURE__*/React.createElement("div", {
+            style: {
+              display: 'flex',
+              gap: '12px'
+            }
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "field",
+            style: {
+              flex: 1,
+              marginBottom: 0
+            }
+          }, /*#__PURE__*/React.createElement("label", null, "Sets"), /*#__PURE__*/React.createElement("input", {
+            value: sets,
+            onChange: e => setSets(e.target.value),
+            placeholder: "3"
+          })), /*#__PURE__*/React.createElement("div", {
+            className: "field",
+            style: {
+              flex: 1,
+              marginBottom: 0
+            }
+          }, /*#__PURE__*/React.createElement("label", null, "Reps"), /*#__PURE__*/React.createElement("input", {
+            value: reps,
+            onChange: e => setReps(e.target.value),
+            placeholder: "10 or 30 sec"
+          }))), /*#__PURE__*/React.createElement("div", {
+            className: "field",
+            style: {
+              marginBottom: 0
+            }
+          }, /*#__PURE__*/React.createElement("label", null, "Notes (optional)"), /*#__PURE__*/React.createElement("textarea", {
+            value: notes,
+            onChange: e => setNotes(e.target.value),
+            rows: 3,
+            placeholder: "Cues, tempo, anything to tell the client"
+          })), /*#__PURE__*/React.createElement("button", {
+            className: "btn-grad",
+            disabled: busy,
+            onClick: submit
+          }, busy ? 'Saving…' : isEdit ? 'Save changes' : 'Add exercise')));
+        }
+        function ProgramEditor({
+          client,
+          onBack
+        }) {
+          const [program, setProgram] = useState(undefined); // undefined = loading, null = none
+          const [exercises, setExercises] = useState([]);
+          const [editing, setEditing] = useState(null); // {section} for new, or exercise for edit
+          const [busy, setBusy] = useState(false);
+          const [err, setErr] = useState(null);
+          async function load() {
+            const {
+              data: progs
+            } = await SB.from('programs').select('*').eq('client_id', client.id).order('position').limit(1);
+            const p = progs && progs[0] || null;
+            setProgram(p);
+            if (p) {
+              const {
+                data: exs
+              } = await SB.from('exercises').select('*').eq('program_id', p.id);
+              setExercises(exs || []);
+            }
+          }
+          useEffect(() => {
+            load();
+          }, []);
+          const sectionList = key => exercises.filter(e => e.section === key).sort((a, b) => a.position - b.position);
+          async function createProgram() {
+            setBusy(true);
+            setErr(null);
+            const {
+              data,
+              error
+            } = await SB.from('programs').insert({
+              client_id: client.id,
+              name: 'Exercise Program',
+              is_active: true
+            }).select().single();
+            setBusy(false);
+            if (error) {
+              setErr('Couldn’t create the program.');
+              return;
+            }
+            setProgram(data);
+            setExercises([]);
+          }
+          async function saveExercise(form) {
+            setBusy(true);
+            setErr(null);
+            const v = parseVimeo(form.vimeo);
+            const payload = {
+              name: form.name.trim(),
+              vimeo_id: v.id || '',
+              vimeo_hash: v.hash || null,
+              reps: form.reps.trim() || null,
+              sets: form.sets.trim() || null,
+              notes: form.notes.trim() || null
+            };
+            let error;
+            if (form.id) {
+              ({
+                error
+              } = await SB.from('exercises').update(payload).eq('id', form.id));
+            } else {
+              const pos = sectionList(form.section).length;
+              ({
+                error
+              } = await SB.from('exercises').insert({
+                ...payload,
+                program_id: program.id,
+                section: form.section,
+                position: pos
+              }));
+            }
+            setBusy(false);
+            if (error) {
+              setErr('Couldn’t save the exercise. Check the details and try again.');
+              return;
+            }
+            setEditing(null);
+            load();
+          }
+          async function del(ex) {
+            if (!window.confirm('Delete “' + ex.name + '”?')) return;
+            await SB.from('exercises').delete().eq('id', ex.id);
+            load();
+          }
+          async function move(ex, dir) {
+            const list = sectionList(ex.section);
+            const idx = list.findIndex(e => e.id === ex.id);
+            const swap = list[idx + dir];
+            if (!swap) return;
+            await SB.from('exercises').update({
+              position: swap.position
+            }).eq('id', ex.id);
+            await SB.from('exercises').update({
+              position: ex.position
+            }).eq('id', swap.id);
+            load();
+          }
+          if (program === undefined) return /*#__PURE__*/React.createElement("div", {
+            className: "page"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "card"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "spinner"
+          }, "Loading…")));
+          if (editing) return /*#__PURE__*/React.createElement(ExerciseForm, {
+            initial: editing,
+            busy: busy,
+            onCancel: () => setEditing(null),
+            onSave: saveExercise
+          });
+          return /*#__PURE__*/React.createElement("div", {
+            className: "page fade-up"
+          }, /*#__PURE__*/React.createElement("button", {
+            className: "backbtn",
+            onClick: onBack
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.back,
+            size: 18
+          }), " Clients"), /*#__PURE__*/React.createElement("div", {
+            className: "section-label",
+            style: {
+              margin: '2px 0 2px'
+            }
+          }, "Program for"), /*#__PURE__*/React.createElement("h3", {
+            style: {
+              fontSize: '21px',
+              marginBottom: '12px'
+            }
+          }, client.full_name), err && /*#__PURE__*/React.createElement("div", {
+            className: "msg error",
+            style: {
+              marginBottom: '12px'
+            }
+          }, err), !program ? /*#__PURE__*/React.createElement("div", {
+            className: "card stack"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "empty"
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "big"
+          }, "No program yet"), /*#__PURE__*/React.createElement("p", null, "Create the program, then add exercises to each section.")), /*#__PURE__*/React.createElement("button", {
+            className: "btn-grad",
+            disabled: busy,
+            onClick: createProgram
+          }, busy ? 'Creating…' : 'Create program')) : SECTIONS.map((s, i) => {
+            const list = sectionList(s.key);
+            return /*#__PURE__*/React.createElement("div", {
+              key: s.key
+            }, /*#__PURE__*/React.createElement("div", {
+              className: "sec-head"
+            }, /*#__PURE__*/React.createElement("span", {
+              className: "num"
+            }, i + 1), s.label), /*#__PURE__*/React.createElement("div", {
+              className: "stack"
+            }, list.map((ex, idx) => /*#__PURE__*/React.createElement("div", {
+              className: "card ex-edit",
+              key: ex.id
+            }, /*#__PURE__*/React.createElement("button", {
+              className: "minibtn",
+              disabled: idx === 0,
+              onClick: () => move(ex, -1),
+              "aria-label": "Move up"
+            }, /*#__PURE__*/React.createElement(Icon, {
+              d: ICONS.up,
+              size: 16
+            })), /*#__PURE__*/React.createElement("button", {
+              className: "minibtn",
+              disabled: idx === list.length - 1,
+              onClick: () => move(ex, 1),
+              "aria-label": "Move down"
+            }, /*#__PURE__*/React.createElement(Icon, {
+              d: ICONS.down,
+              size: 16
+            })), /*#__PURE__*/React.createElement("div", {
+              className: "grow"
+            }, /*#__PURE__*/React.createElement("div", {
+              className: "t"
+            }, ex.name), /*#__PURE__*/React.createElement("div", {
+              className: "s"
+            }, ex.vimeo_id ? 'Video ✓' : 'No video', ex.sets ? ' · ' + ex.sets + ' sets' : '', ex.reps ? ' · ' + ex.reps : '')), /*#__PURE__*/React.createElement("button", {
+              className: "minibtn",
+              onClick: () => setEditing(ex),
+              "aria-label": "Edit"
+            }, /*#__PURE__*/React.createElement(Icon, {
+              d: ICONS.edit,
+              size: 16
+            })), /*#__PURE__*/React.createElement("button", {
+              className: "minibtn danger",
+              onClick: () => del(ex),
+              "aria-label": "Delete"
+            }, /*#__PURE__*/React.createElement(Icon, {
+              d: ICONS.trash,
+              size: 16
+            })))), /*#__PURE__*/React.createElement("button", {
+              className: "addrow",
+              onClick: () => setEditing({
+                section: s.key
+              })
+            }, "+ Add exercise to ", s.label)));
+          }));
+        }
         function ClientsScreen() {
           const [clients, setClients] = useState(null); // null = loading
           const [adding, setAdding] = useState(false);
+          const [editingClient, setEditingClient] = useState(null);
           const [notice, setNotice] = useState(null);
           const [err, setErr] = useState(null);
           async function load() {
@@ -703,6 +1152,12 @@
               setErr('Couldn’t update that status — reloading.');
               load();
             }
+          }
+          if (editingClient) {
+            return /*#__PURE__*/React.createElement(ProgramEditor, {
+              client: editingClient,
+              onBack: () => setEditingClient(null)
+            });
           }
           if (adding) {
             return /*#__PURE__*/React.createElement("div", {
@@ -768,14 +1223,24 @@
           }, clients.map(c => /*#__PURE__*/React.createElement("div", {
             className: "card client-row",
             key: c.id
-          }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+          }, /*#__PURE__*/React.createElement("div", {
+            className: "clientpick grow",
+            onClick: () => setEditingClient(c)
+          }, /*#__PURE__*/React.createElement("div", {
             className: "nm"
           }, c.full_name), /*#__PURE__*/React.createElement("div", {
             className: "em"
           }, c.email)), /*#__PURE__*/React.createElement(StatusSelect, {
             value: c.access_status,
             onChange: s => setStatus(c.id, s)
-          })))));
+          }), /*#__PURE__*/React.createElement("button", {
+            className: "minibtn",
+            onClick: () => setEditingClient(c),
+            "aria-label": "Edit program"
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.chevR,
+            size: 18
+          }))))));
         }
         function TemplatesScreen() {
           return /*#__PURE__*/React.createElement("div", {
@@ -820,7 +1285,9 @@
             name: name,
             role: owner ? 'Admin' : 'Client',
             onSignOut: signOut
-          }), owner ? /*#__PURE__*/React.createElement(AdminHome, null) : /*#__PURE__*/React.createElement(ClientHome, null));
+          }), owner ? /*#__PURE__*/React.createElement(AdminHome, null) : /*#__PURE__*/React.createElement(ClientHome, {
+            session: session
+          }));
         }
         
         /* ======================== ROOT ======================== */
