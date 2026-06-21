@@ -216,14 +216,17 @@
     .wt-panel.is-open{ display:block; }
     .wt-title{ font-weight:800; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#1689BD; margin-bottom:8px; }
     .wt-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    .wt-table{ border-collapse:collapse; width:100%; min-width:420px; }
+    .wt-table{ border-collapse:collapse; width:100%; table-layout:fixed; }
     .wt-table th, .wt-table td{ border:1px solid var(--line); padding:0; }
-    .wt-table thead th{ background:rgba(13,44,61,.04); font-size:11px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-soft); padding:7px 8px; text-align:left; }
-    .wt-table tbody th{ width:48px; text-align:center; font-size:13px; font-weight:800; color:var(--ink); background:rgba(13,44,61,.04); }
-    .wt-table td input{ width:100%; border:0; outline:none; background:transparent; font-family:'Montserrat',sans-serif; font-size:14px; color:var(--ink); padding:9px 8px; min-width:54px; }
-    .wt-table td input.wt-notes{ min-width:120px; }
+    .wt-table thead th{ background:rgba(13,44,61,.04); font-size:10px; font-weight:800; letter-spacing:.02em; text-transform:uppercase; color:var(--ink-soft); padding:6px 6px; text-align:left; line-height:1.2; white-space:normal; }
+    .wt-table tbody th{ text-align:center; font-size:13px; font-weight:800; color:var(--ink); background:rgba(13,44,61,.04); }
+    .wt-table td input{ width:100%; border:0; outline:none; background:transparent; font-family:'Montserrat',sans-serif; font-size:14px; color:var(--ink); padding:9px 6px; box-sizing:border-box; }
     .wt-table td input:focus{ background:rgba(80,207,176,.12); }
-    .wt-saving{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+    .wt-actions{ margin-top:10px; }
+    .wt-save{ background:var(--grad-primary); color:#fff; border:0; border-radius:10px; font-weight:800; font-size:14px; padding:10px 22px; cursor:pointer; }
+    .wt-save:active{ transform:translateY(1px); }
+    .wt-save:disabled{ opacity:.7; cursor:default; }
+    .wt-save.is-saved{ background:none; color:#117a66; border:1px solid rgba(80,207,176,.55); }
 
     /* ---------- editor rows ---------- */
     .ex-edit{ display:flex; align-items:center; gap:8px; padding:11px 12px; }
@@ -261,10 +264,10 @@
       .sec-head{ margin:18px 0 8px; }
       .chip{ border:1px solid #bbb !important; background:#fff !important; color:#333 !important; }
       .ex-img{ max-height:none; max-width:48%; width:auto; float:right; margin:0 0 8px 12px; border:1px solid #ccc; border-radius:6px; }
-      .wt-toggle{ display:none !important; }
+      .wt-toggle, .wt-actions{ display:none !important; }
       .wt-panel{ display:block !important; margin-top:10px; }
       .wt-scroll{ overflow:visible !important; }
-      .wt-table{ min-width:0 !important; width:100% !important; }
+      .wt-table{ width:100% !important; }
       .wt-table th, .wt-table td{ border:1px solid #999 !important; }
       .wt-table thead th{ background:#f0f0f0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       .wt-table tbody th{ background:#f7f7f7 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -813,6 +816,7 @@
             }, ex.notes), /*#__PURE__*/React.createElement(WeekTracker, {
               exerciseId: ex.id,
               clientId: uid,
+              section: ex.section,
               initial: logsByEx[ex.id] || {}
             }), ex.vimeo_id && /*#__PURE__*/React.createElement("div", {
               className: "print-link"
@@ -954,6 +958,7 @@
         function WeekTracker({
           exerciseId,
           clientId,
+          section,
           initial
         }) {
           const seed = () => {
@@ -968,38 +973,42 @@
           };
           const [rows, setRows] = useState(seed);
           const [open, setOpen] = useState(false);
-          const [saving, setSaving] = useState(false);
-          const timers = useRef({});
-          async function saveWeek(week, vals) {
-            setSaving(true);
-            await SB.from('exercise_logs').upsert({
-              exercise_id: exerciseId,
-              client_id: clientId,
-              week,
-              sets: vals.sets.trim() || null,
-              reps: vals.reps.trim() || null,
-              weight: vals.weight.trim() || null,
-              notes: vals.notes.trim() || null
-            }, {
+          const [status, setStatus] = useState('idle'); // idle | dirty | saving | saved
+          function update(week, field, val) {
+            setRows(prev => ({
+              ...prev,
+              [week]: {
+                ...prev[week],
+                [field]: val
+              }
+            }));
+            setStatus('dirty');
+          }
+          async function saveAll() {
+            setStatus('saving');
+            const out = [];
+            for (let w = 1; w <= 6; w++) {
+              const r = rows[w];
+              const filled = r.sets.trim() || r.reps.trim() || r.weight.trim() || r.notes.trim();
+              if (filled || initial[w]) {
+                out.push({
+                  exercise_id: exerciseId,
+                  client_id: clientId,
+                  week: w,
+                  sets: r.sets.trim() || null,
+                  reps: r.reps.trim() || null,
+                  weight: r.weight.trim() || null,
+                  notes: r.notes.trim() || null
+                });
+              }
+            }
+            if (out.length) await SB.from('exercise_logs').upsert(out, {
               onConflict: 'exercise_id,client_id,week'
             });
-            setSaving(false);
+            setStatus('saved');
           }
-          function update(week, field, val) {
-            setRows(prev => {
-              const next = {
-                ...prev,
-                [week]: {
-                  ...prev[week],
-                  [field]: val
-                }
-              };
-              clearTimeout(timers.current[week]);
-              timers.current[week] = setTimeout(() => saveWeek(week, next[week]), 700);
-              return next;
-            });
-          }
-          const cols = [['sets', 'Sets'], ['reps', 'Reps'], ['weight', 'Weight / resistance'], ['notes', 'Notes']];
+          const cols = section === 'warmup' ? [['notes', 'Notes']] : [['sets', 'Sets'], ['reps', 'Reps'], ['weight', 'Weight / resistance'], ['notes', 'Notes']];
+          const colW = k => k === 'notes' ? null : k === 'weight' ? '64px' : '46px';
           return /*#__PURE__*/React.createElement("div", {
             className: "wt"
           }, /*#__PURE__*/React.createElement("button", {
@@ -1013,19 +1022,31 @@
             className: "wt-scroll"
           }, /*#__PURE__*/React.createElement("table", {
             className: "wt-table"
-          }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Wk"), cols.map(c => /*#__PURE__*/React.createElement("th", {
+          }, /*#__PURE__*/React.createElement("colgroup", null, /*#__PURE__*/React.createElement("col", {
+            style: {
+              width: '30px'
+            }
+          }), cols.map(c => /*#__PURE__*/React.createElement("col", {
+            key: c[0],
+            style: colW(c[0]) ? {
+              width: colW(c[0])
+            } : undefined
+          }))), /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Wk"), cols.map(c => /*#__PURE__*/React.createElement("th", {
             key: c[0]
           }, c[1])))), /*#__PURE__*/React.createElement("tbody", null, [1, 2, 3, 4, 5, 6].map(w => /*#__PURE__*/React.createElement("tr", {
             key: w
           }, /*#__PURE__*/React.createElement("th", null, w), cols.map(c => /*#__PURE__*/React.createElement("td", {
             key: c[0]
           }, /*#__PURE__*/React.createElement("input", {
-            className: c[0] === 'notes' ? 'wt-notes' : '',
             value: rows[w][c[0]],
             onChange: e => update(w, c[0], e.target.value)
-          })))))))), saving && /*#__PURE__*/React.createElement("div", {
-            className: "wt-saving"
-          }, "Saving…")));
+          })))))))), /*#__PURE__*/React.createElement("div", {
+            className: "wt-actions"
+          }, /*#__PURE__*/React.createElement("button", {
+            className: 'wt-save' + (status === 'saved' ? ' is-saved' : ''),
+            onClick: saveAll,
+            disabled: status === 'saving'
+          }, status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Save'))));
         }
         function ExerciseForm({
           initial,
