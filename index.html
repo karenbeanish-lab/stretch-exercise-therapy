@@ -243,6 +243,9 @@
     .addrow{ width:100%; border:1px dashed rgba(13,44,61,.20); background:rgba(13,44,61,.02); color:#1689BD; font-weight:700; font-size:14px; padding:13px; border-radius:12px; cursor:pointer; }
     .addrow:active{ transform:translateY(1px); }
     .clientpick{ cursor:pointer; min-width:0; }
+    .nameinput{ width:100%; font-family:'Montserrat',sans-serif; font-weight:700; font-size:15px; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:8px 10px; outline:none; box-sizing:border-box; }
+    .nameinput:focus{ border-color:#4DB0C0; }
+    .minibtn.ok{ color:#fff; background:var(--grad-primary); border:0; }
     .field textarea{ width:100%; font-family:'Montserrat',sans-serif; font-size:16px; color:var(--ink); padding:14px; border-radius:13px; border:1px solid var(--line); background:#fff; outline:none; resize:vertical; }
     .field textarea:focus{ border-color:var(--accent-mint); box-shadow:0 0 0 4px rgba(80,207,176,.18); }
 
@@ -378,6 +381,8 @@
           up: ['M6 14l6-6 6 6'],
           down: ['M6 10l6 6 6-6'],
           chevR: ['M9 6l6 6-6 6'],
+          check: ['M5 12l5 5L20 7'],
+          x: ['M6 6l12 12', 'M18 6l-12 12'],
           play: ['M8 5v14l11-7z']
         };
         
@@ -1426,8 +1431,44 @@
           const [clients, setClients] = useState(null); // null = loading
           const [adding, setAdding] = useState(false);
           const [editingClient, setEditingClient] = useState(null);
+          const [editingName, setEditingName] = useState(null); // client id being renamed
+          const [nameVal, setNameVal] = useState('');
+          const [savingName, setSavingName] = useState(false);
           const [notice, setNotice] = useState(null);
           const [err, setErr] = useState(null);
+          function startName(c) {
+            setErr(null);
+            setEditingName(c.id);
+            setNameVal(c.full_name || '');
+          }
+          function cancelName() {
+            setEditingName(null);
+            setNameVal('');
+          }
+          async function saveName(id) {
+            const v = nameVal.trim();
+            if (!v) {
+              setErr('Name can’t be empty.');
+              return;
+            }
+            setSavingName(true);
+            const {
+              error
+            } = await SB.from('clients').update({
+              full_name: v
+            }).eq('id', id);
+            setSavingName(false);
+            if (error) {
+              setErr('Couldn’t save that name — try again.');
+              return;
+            }
+            setClients(cs => cs.map(c => c.id === id ? {
+              ...c,
+              full_name: v
+            } : c));
+            setEditingName(null);
+            setNameVal('');
+          }
           async function load() {
             setErr(null);
             const {
@@ -1531,17 +1572,53 @@
           }, clients.map(c => /*#__PURE__*/React.createElement("div", {
             className: "card client-row",
             key: c.id
-          }, /*#__PURE__*/React.createElement("div", {
+          }, editingName === c.id ? /*#__PURE__*/React.createElement("div", {
+            className: "clientpick grow"
+          }, /*#__PURE__*/React.createElement("input", {
+            className: "nameinput",
+            value: nameVal,
+            autoFocus: true,
+            onChange: e => setNameVal(e.target.value),
+            onKeyDown: e => {
+              if (e.key === 'Enter') saveName(c.id);
+              if (e.key === 'Escape') cancelName();
+            }
+          }), /*#__PURE__*/React.createElement("div", {
+            className: "em"
+          }, c.email)) : /*#__PURE__*/React.createElement("div", {
             className: "clientpick grow",
             onClick: () => setEditingClient(c)
           }, /*#__PURE__*/React.createElement("div", {
             className: "nm"
           }, c.full_name), /*#__PURE__*/React.createElement("div", {
             className: "em"
-          }, c.email)), /*#__PURE__*/React.createElement(StatusSelect, {
+          }, c.email)), editingName === c.id ? /*#__PURE__*/React.createElement("button", {
+            className: "minibtn ok",
+            onClick: () => saveName(c.id),
+            disabled: savingName,
+            "aria-label": "Save name"
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.check,
+            size: 18
+          })) : /*#__PURE__*/React.createElement("button", {
+            className: "minibtn",
+            onClick: () => startName(c),
+            "aria-label": "Edit name"
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.edit,
+            size: 18
+          })), editingName === c.id ? /*#__PURE__*/React.createElement("button", {
+            className: "minibtn",
+            onClick: cancelName,
+            disabled: savingName,
+            "aria-label": "Cancel"
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.x,
+            size: 18
+          })) : /*#__PURE__*/React.createElement(StatusSelect, {
             value: c.access_status,
             onChange: s => setStatus(c.id, s)
-          }), /*#__PURE__*/React.createElement("button", {
+          }), editingName !== c.id && /*#__PURE__*/React.createElement("button", {
             className: "minibtn",
             onClick: () => setEditingClient(c),
             "aria-label": "Edit program"
