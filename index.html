@@ -252,6 +252,7 @@
     .nameinput{ width:100%; font-family:'Montserrat',sans-serif; font-weight:700; font-size:15px; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:8px 10px; outline:none; box-sizing:border-box; }
     .nameinput:focus{ border-color:#4DB0C0; }
     .minibtn.ok{ color:#fff; background:var(--grad-primary); border:0; }
+    .barbtns{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .searchbar{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:12px; color:var(--ink-soft); }
     .searchbar input{ flex:1; min-width:0; border:0; outline:none; background:transparent; font-family:'Montserrat',sans-serif; font-size:15px; color:var(--ink); }
     .searchbar:focus-within{ border-color:#4DB0C0; }
@@ -394,6 +395,7 @@
           check: ['M5 12l5 5L20 7'],
           x: ['M6 6l12 12', 'M18 6l-12 12'],
           search: ['M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12z', 'M20 20l-4-4'],
+          sync: ['M21 12a9 9 0 1 1-2.64-6.36', 'M21 3v6h-6'],
           play: ['M8 5v14l11-7z']
         };
         
@@ -1448,6 +1450,24 @@
           const [notice, setNotice] = useState(null);
           const [err, setErr] = useState(null);
           const [query, setQuery] = useState('');
+          const [syncing, setSyncing] = useState(false);
+          async function syncClients() {
+            setErr(null);
+            setNotice(null);
+            setSyncing(true);
+            const {
+              data,
+              error
+            } = await SB.rpc('sync_clients');
+            setSyncing(false);
+            if (error) {
+              setErr('Sync failed — ' + (error.message || 'please try again.'));
+              return;
+            }
+            const n = typeof data === 'number' ? data : 0;
+            setNotice(n === 0 ? 'All up to date — no new clients to add.' : 'Synced — ' + n + ' new client' + (n === 1 ? '' : 's') + ' added.');
+            load();
+          }
           function startName(c) {
             setErr(null);
             setEditingName(c.id);
@@ -1550,7 +1570,16 @@
             style: {
               margin: 0
             }
-          }, "Clients"), /*#__PURE__*/React.createElement("button", {
+          }, "Clients"), /*#__PURE__*/React.createElement("div", {
+            className: "barbtns"
+          }, /*#__PURE__*/React.createElement("button", {
+            className: "btn-ghost barbtn",
+            onClick: syncClients,
+            disabled: syncing
+          }, /*#__PURE__*/React.createElement(Icon, {
+            d: ICONS.sync,
+            size: 18
+          }), " ", syncing ? 'Syncing…' : 'Sync new clients'), /*#__PURE__*/React.createElement("button", {
             className: "btn-grad barbtn",
             onClick: () => {
               setNotice(null);
@@ -1559,7 +1588,7 @@
           }, /*#__PURE__*/React.createElement(Icon, {
             d: ICONS.plus,
             size: 18
-          }), " Add client")), notice && /*#__PURE__*/React.createElement("div", {
+          }), " Add client"))), notice && /*#__PURE__*/React.createElement("div", {
             className: "msg ok",
             style: {
               marginBottom: '12px'
