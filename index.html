@@ -812,7 +812,7 @@
             className: "btn-ghost barbtn",
             onClick: () => window.print()
           }, "Print / Save PDF")), SECTIONS.map((s, i) => {
-            const list = st.exercises.filter(e => e.section === s.key).sort((a, b) => a.position - b.position);
+            const list = st.exercises.filter(e => e.section === s.key).slice().sort((a, b) => ((a.position ?? 0) - (b.position ?? 0)) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id)));
             if (!list.length) return null;
             return /*#__PURE__*/React.createElement("div", {
               key: s.key
@@ -1261,7 +1261,8 @@
           useEffect(() => {
             load();
           }, []);
-          const sectionList = key => exercises.filter(e => e.section === key).sort((a, b) => a.position - b.position);
+          const orderKey = (a, b) => ((a.position ?? 0) - (b.position ?? 0)) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id));
+          const sectionList = key => exercises.filter(e => e.section === key).slice().sort(orderKey);
           async function createProgram() {
             setBusy(true);
             setErr(null);
@@ -1327,15 +1328,32 @@
           async function move(ex, dir) {
             const list = sectionList(ex.section);
             const idx = list.findIndex(e => e.id === ex.id);
-            const swap = list[idx + dir];
-            if (!swap) return;
-            await SB.from('exercises').update({
-              position: swap.position
-            }).eq('id', ex.id);
-            await SB.from('exercises').update({
-              position: ex.position
-            }).eq('id', swap.id);
-            load();
+            const target = idx + dir;
+            if (idx < 0 || target < 0 || target >= list.length) return;
+            const reordered = list.slice();
+            const [item] = reordered.splice(idx, 1);
+            reordered.splice(target, 0, item);
+            const newPos = {};
+            reordered.forEach((e, i) => {
+              newPos[e.id] = i;
+            });
+            // optimistic reorder so it feels instant
+            setExercises(prev => prev.map(e => e.id in newPos ? {
+              ...e,
+              position: newPos[e.id]
+            } : e));
+            // persist clean 0..n-1 positions for the whole section
+            for (const e of reordered) {
+              const {
+                error
+              } = await SB.from('exercises').update({
+                position: newPos[e.id]
+              }).eq('id', e.id);
+              if (error) {
+                load();
+                return;
+              }
+            }
           }
           if (program === undefined) return /*#__PURE__*/React.createElement("div", {
             className: "page"
